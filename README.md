@@ -15,3 +15,4 @@ A simple Python project that turns your microphone into a voice interface for a 
  
 
 You can install dependencies using "pip install -r requirements.txt".
+Feel free to reach out to me for any questions, possible improvements and troubleshooting!
