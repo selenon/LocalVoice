@@ -1,33 +1,33 @@
-#local LLM modelinden soru sorup cevap almayi sağlayan library
+#Library for getting responses from the LLM
 import requests
-#LLM'in ses ile cevap vermesini sağlayan library
+#Library for getting voice feedback from the LLM
 import vosk
-#Kullanicidan ses almayi sağlayan library
-import sounddevice as salici
+#Library for getting voice input
+import sounddevice as vinput
 import queue
 import json
 import pyttsx3
 import os
 
-#Vosk modeli
-model_path = "vosk_modelleri/modeller"
+#Vosk model
+model_path = "ENTER_PATH_FOR_VOSK"
 if not os.path.exists(model_path):
-    raise FileNotFoundError("Dosya bulunamadi")
+    raise FileNotFoundError("File not found")
 
 vmodel = vosk.Model(model_path)
-#Sesin text halini tutacak queue
+#Holds the query from voice input
 q = queue.Queue()
 
-#Sesi processleyecek function
+#Function to process voice into text
 def callback(indata, frames, time, status):
     if status:
-        print("Ses hatasi:", status)
+        print("Voice error:", status)
     q.put(bytes(indata))
 
-#Mikrofondan ses alacak function
-def dinle():
-    with salici.RawInputStream(samplerate=16000, blocksize=8000, dtype='int16', channels=1, callback=callback):
-        print("Dinliyor")
+#Function for getting voice input
+def listen():
+    with vinput.RawInputStream(samplerate=16000, blocksize=8000, dtype='int16', channels=1, callback=callback):
+        print("Listening")
         rec = vosk.KaldiRecognizer(vmodel, 16000)
         while True:
             data = q.get()
@@ -37,42 +37,42 @@ def dinle():
                 if text:
                     return text
 
-#local LLM modeline soruyu iletecek function
-def sor(prompt, model_name="mistral"):
-    print(f"Soru: {prompt}")
+#Function get prompts to the LLM
+def ask(prompt, model_name="MODEL_NAME"):
+    print(f"Prompt: {prompt}")
     try:
         response = requests.post("http://localhost:11434/api/generate", json={"model": model_name, "prompt": prompt, "stream": False}, timeout=60)
         if response.status_code != 200:
-            print(f"LLM hatasi [{response.status_code}]: {response.text}")
-            return "LLM hata verdi."
+            print(f"LLM error [{response.status_code}]: {response.text}")
+            return "LLM gave an error."
         
         data = response.json()
-        print("LLM'in raw cevabi:", data)
+        print("LLM's raw answer:", data)
 
         reply = data.get("response", "").strip()
         if not reply:
-            return "LLM cevap veremedi."
-        print(f"Cevap: {reply}")
+            return "LLM couldn't reply."
+        print(f"Reply: {reply}")
         return reply
 
     except requests.exceptions.RequestException as e:
-        print("LLM modeline baglanamadi. LLM modelinin calistigindan emin olun.", e)
-        return "LLM modeline baglanamadi."
+        print("Couldn't reach LLM. Make sure the LLM is active.", e)
+        return "Couldn't reach LLM."
 
-#Cevabi sesli olarak verecek function
-def konus(cevap):
+#Function to get voice output
+def speak(reply):
     engine = pyttsx3.init()
-    engine.say(cevap)
+    engine.say(reply)
     engine.runAndWait()
 
 #Main function
 if __name__ == "__main__":
-    print("LLM hazir. (Durmak için CRTL+C kullanin)")
+    print("LLM ready. (To stop use CRTL+C)")
     try:
         while True:
-            ses_input = dinle()
-            print("Kullanici input: ", ses_input)
-            cevap = sor(ses_input)
-            konus(cevap)
+            voice_input = listen()
+            print("User input: ", voice_input)
+            reply = ask(voice_input)
+            speak(reply)
     except KeyboardInterrupt:
-        print("Program sonlandiriliyor...")
+        print("Quitting program...")
